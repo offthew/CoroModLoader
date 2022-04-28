@@ -55,7 +55,6 @@ function menu:new()
     local _isBackwards = _extraParams.isBackwards
     local _history = _extraParams.history
     local _screenClass = require("classes.interface.screens." .. _screenName)
-    --writeJsonToFile(unpack(defaultScreenParams),"Resources/mods/params.json")
     local newScreenObject = _screenClass:new(_screenParams, unpack(defaultScreenParams))
     newScreenObject.isVisible = false
     menuScreenGroup:insert(newScreenObject)

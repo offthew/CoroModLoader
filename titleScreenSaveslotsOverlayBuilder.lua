@@ -71,7 +71,7 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
   end))
   --Loop Here in the future
   moddingButton = UIContainerBuilder:new(overlayContentGroup, UIContainerStyle.blue_withShadow, 22, 24)
-  magnet:topLeft(moddingButton, gameSettings:getSafeHorizontalInsetOrAtleast((i*26)+26), 2)
+  magnet:topLeft(moddingButton, gameSettings:getSafeHorizontalInsetOrAtleast((26)+26), 2)
   local moddingButtonIcon = imageHelper:new(moddingButton, "mods/modLoader/img/moddingScreen.png")
   magnet:center(moddingButtonIcon, 0, -2, moddingButton)
   local moddingButtonNavigation = navigations:createUseButtonNavigation(moddingButton)
