@@ -1,9 +1,9 @@
 # Coromon Mod Loader v0.1
-** ⚠️ Support the game and buy it ⚠️ **
+**⚠️ Support the game and buy it ⚠️**
 
 A mod loader made for [Coromon](https://www.coromon.com/) written in Lua. This Mod Loader allows you to mods outside of the resource.car. An API is also being build to allow modders editing the same functions and to improve their QoL.
 
-** This Mod Loader is still in early-alpha phase, code is pretty trashy, there's not a lot of features, i'm a huge newbie but with time and a lot of work and help this could lead to something great for the monster taming community**
+**This Mod Loader is still in early-alpha phase, code is pretty trashy, there's not a lot of features, i'm a huge newbie but with time and a lot of work and help this could lead to something great for the monster taming community**
 
 If you wanna help, give tips, or have a chat about modding feel free to contact me on Discord [offthew#4762](https://discordapp.com/users/798277308854960148/)
 ## Documentation
@@ -34,9 +34,13 @@ Delete your `resource.car` and rename `resourceBackup.car` to `resource.car`
 Here is some previews of Mods that can be made.
 <img src="https://i.imgur.com/fLm9PCF.gif"/>
 <p align = "center">
-** Cheat Menu Mod **
+**Cheat Menu Mod**
 </p>
 <img src="https://i.imgur.com/c4acyOo.gif"/>
 <p align = "center">
-** Online Trading Mod **
+**Online Trading Mod**
 </p>
+
+## Special Thanks
+- 0BuRner for [corona-archiver](https://github.com/0BuRner/corona-archiver)
+- The Coromon Community
