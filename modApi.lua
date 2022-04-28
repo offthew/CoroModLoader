@@ -58,7 +58,6 @@ local function getMods(path)
                   else
                     local modConfig = json.decode(fileHelper:read(f..'/config.json'))
                     modApi.log:write("Adding "..file.." to the modList")
-                    --require(modRequire)
                     modConfig["name"]= file
                     modConfig["require"] = modRequire
                     modConfig["activated"] = false
@@ -87,7 +86,6 @@ function modApi:load()
   modApi.monster = require(requirePath.."monster")
   modApi.pauseMenu = require(requirePath.."pauseMenuScreen")
   require("resources.mods.modLoader.interface.menuBuilder")
-  --activateMods(modApi.modList)
   activateModsLoad(modApi.modsActivated)
 end
 
