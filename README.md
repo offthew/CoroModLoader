@@ -34,11 +34,11 @@ Delete your `resource.car` and rename `resourceBackup.car` to `resource.car`
 Here is some previews of Mods that can be made.
 <img src="https://i.imgur.com/fLm9PCF.gif"/>
 <p align = "center">
-**Cheat Menu Mod**
+  <b>Cheat Menu Mod</b>
 </p>
 <img src="https://i.imgur.com/c4acyOo.gif"/>
 <p align = "center">
-**Online Trading Mod**
+  <b>Online Trading Mod</b>
 </p>
 
 ## Special Thanks
