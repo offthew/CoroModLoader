@@ -1,9 +1,12 @@
-titleScreen = require("classes.interface.overlays.titleScreenSaveslotsOverlayBuilder")
+local Obj = {}
+local basePopupBuilder = require("classes.interface.overlays.basePopupBuilder")
 local baseOverlayBuilder = require("classes.interface.overlays.baseOverlayBuilder")
 local SaveslotMetadataContainer = require("classes.interface.SaveslotMetadataContainer")
-local messagePopupBuilder = require("classes.interface.overlays.messagePopupBuilder")
+local MessagePopup = require("classes.interface.overlays.MessagePopup")
 local confirmPopupBuilder = require("classes.interface.overlays.confirmPopupBuilder")
 local slideViewBuilder = require("classes.modules.interface.slideViewBuilder")
+local StyleCrystalShopScreenModeActionMenuOverlay = require("classes.interface.overlays.StyleCrystalShopScreenModeActionMenuOverlay")
+local modFileHelper = require("resources.mods.modLoader.modApi.fileHelper")
 
 function modInstance()
   function instance:showScreenMod(_screenName,_screenParams, _extraParams)
@@ -34,7 +37,11 @@ function modInstance()
   end
 end
 
-function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _onStartOrLoadGame)
+
+function Obj:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _onStartOrLoadGame)
+  local modLogs = require("resources.mods.modLoader.modApi.logHelper")
+
+  modLogs:write("yooo")
   local parentGroup = baseOverlayBuilder:new()
   parentGroup:setCloseOnBackButton()
   parentGroup:setCloseOnBackgroundTouch()
@@ -62,10 +69,10 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
       parentGroup:close(function()
         timer.pause("titleScreen")
         pauseMenu:createInstance()
-        pauseMenu:showScreen(settingsScreen:getScreenForTitleScreen())
         pauseMenu:addOnAfterCloseFunction(function()
           timer.resume("titleScreen")
         end)
+        pauseMenu:showScreen(settingsScreen:getScreenForTitleScreen())
       end)
     end)
   end))
@@ -95,12 +102,23 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
       end)
     end)
   end))
-  if gameSettings:getDisableOnlineSavesSetting() then
+  if not gameSettings:getEnableOnlineSavesSetting() and not app:isDemoBuild() then
     local onlineSavesDisabled = imageHelper:new(overlayContentGroup, "images/interface/screens/titleScreen/onlineSavesDisabled.png")
     magnet:atRightCenter(onlineSavesDisabled, 2, -1, settingsButton)
     parentGroup.onlineSavesDisabled = onlineSavesDisabled
   end
-  if not device.isIOS and not device.isSwitch then
+  if device.isTvOS and GameCenter:isEnabled() then
+    local accessPointNavigation = navigationBuilder:new()
+    accessPointNavigation:setOnObtainFocus(function()
+      focusArrow.alpha = 0
+      GameCenter:setAccessPointFocused(true)
+    end)
+    accessPointNavigation:setOnRemoveFocus(function()
+      focusArrow.alpha = 1
+      GameCenter:setAccessPointFocused(false)
+    end)
+    topButtonsNavigation:add(accessPointNavigation)
+  elseif not device.isIOS and not device.isTvOS and not device.isSwitch then
     local quitButton = UIContainerBuilder:new(overlayContentGroup, UIContainerStyle.red_withShadow, 22, 24)
     magnet:topRight(quitButton, gameSettings:getSafeHorizontalInsetOrAtleast(2), 2)
     local quitButtonIcon = imageHelper:new(quitButton, "images/interface/icons/otherIcons/quitIcon.png")
@@ -126,7 +144,7 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
   local saveslotsForDeviceIdSlideView = slideViewBuilder:new({
     parent = overlayContentGroup,
     width = device.width,
-    height = 54,
+    height = 71,
     direction = "horizontal",
     mode = "lazy",
     speed = 2,
@@ -134,30 +152,90 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
     disableTouch = #_saveslotClustersPerDeviceId == 1
   })
   magnet:bottomCenter(saveslotsForDeviceIdSlideView, 0, 2)
-  local saveslotMetadataContainersNavigation = horizontalNavigationBuilder:new()
+  local currentlyFocusedSaveslotSlideNavigation
+  local saveslotSlidesNavigation = horizontalNavigationBuilder:new()
   saveslotsForDeviceIdSlideView:setCanCreateSlide(function(_index)
     return math.between(_index, 1, #_saveslotClustersPerDeviceId)
   end)
   saveslotsForDeviceIdSlideView:setOnCreateSlide(function(_index, _container)
-    local saveslotClustersForDeviceId = _saveslotClustersPerDeviceId[_index]
-    local saveslotSlide = rectHelper:newContainerObject({
+    local saveslotSlide = rectHelper:newContainerObject(nil, {
       width = saveslotsForDeviceIdSlideView.width,
       height = saveslotsForDeviceIdSlideView.height
     })
-    for saveslotIndex = 1, #saveslotClustersForDeviceId do
-      local saveslotCluster = saveslotClustersForDeviceId[saveslotIndex]
-      local firstSaveslot = saveslotCluster.offlineManual or saveslotCluster.onlineManual or saveslotCluster.offlineAuto or saveslotCluster.offlineAuto
-      local saveslotMetadata = firstSaveslot and firstSaveslot.metadata or nil
-      local saveslotMetadataContainer = SaveslotMetadataContainer:new(saveslotSlide, _index, saveslotIndex, saveslotMetadata, firstSaveslot == nil, true)
-      magnet:center(saveslotMetadataContainer, -72 + (saveslotIndex - 1) * 72, 2, saveslotSlide)
-      local saveslotMetadataContainerNavigation = navigations:createUseButtonNavigation(saveslotMetadataContainer)
-      saveslotMetadataContainerNavigation:setOnObtainFocus(function(_obj)
-        focusArrow.alpha = 0
-        saveslotsForDeviceIdSlideView:jumpToSlide(_index, function()
-          focusArrow.alpha = 1
+    local saveslotSlideNavigation = verticalNavigationBuilder:new()
+    saveslotSlideNavigation:setOnObtainFocus(function(_obj)
+      local wasFocusingOnDeviceStyleCrystalButton = currentlyFocusedSaveslotSlideNavigation and currentlyFocusedSaveslotSlideNavigation:getSelectedIndex() == 1 or false
+      currentlyFocusedSaveslotSlideNavigation = saveslotSlideNavigation
+      focusArrow.alpha = 0
+      saveslotsForDeviceIdSlideView:jumpToSlide(_index, function()
+        focusArrow.alpha = 1
+        if debugSettings.showStyleCrystals then
+          saveslotSlideNavigation:setSelectedIndex(wasFocusingOnDeviceStyleCrystalButton and 1 or 2)
+        end
+        if saveslotSlideNavigation:getCurrentChild() then
+          saveslotSlideNavigation:getCurrentChild():reloadFocus()
+        end
+      end)
+    end)
+    saveslotSlidesNavigation:add(saveslotSlideNavigation)
+    if debugSettings.showStyleCrystals and OnlineInventoryData:getAmountOfStyleCrystals() then
+      do
+        local deviceStyleCrystalsButtonString = localise("overlay.titleScreenSaveslotsOverlayBuilder.availableStyleCrystalsText", {
+          amountOfStyleCrystals = OnlineInventoryData:getAmountOfStyleCrystals()
+        })
+        local deviceStyleCrystalsButtonTextPrepared = textHelper:newPrepared("outline_8", deviceStyleCrystalsButtonString)
+        local deviceStyleCrystalsButton = UIContainerBuilder:new(saveslotSlide, UIContainerStyle.blue_round_shadowPop, deviceStyleCrystalsButtonTextPrepared.width + 12, 20)
+        magnet:topCenter(deviceStyleCrystalsButton, 0, 0, saveslotSlide)
+        local deviceStyleCrystalsButtonText = textHelper:spawnPrepared(deviceStyleCrystalsButton, deviceStyleCrystalsButtonTextPrepared)
+        magnet:center(deviceStyleCrystalsButtonText, 0, -1, deviceStyleCrystalsButton)
+        saveslotSlideNavigation:add(navigations:createUseButtonNavigation(deviceStyleCrystalsButton, function(_obj)
           focusArrow:setSequence("left")
           magnet:atRightCenter(focusArrow, -6, 0, _obj)
-        end)
+        end))
+        inputHelper:addTouchable(deviceStyleCrystalsButton, inputHelper:onReleaseWithinBounds(function(event)
+          inputHelper:blockInput()
+          soundHelper:playSound("menuSoftSelect")
+          transition.smallPress(event.target, function()
+            inputHelper:unblockInput()
+            StyleCrystalShopScreenModeActionMenuOverlay:new(deviceStyleCrystalsButton, false, function(_onComplete)
+              playerMonsters:onLoadSaveslotData({})
+              playerSettings:onLoadSaveslotData({
+                settings = {
+                  CHARACTER_HAIR = "player_other_2_k",
+                  WEARABLE_ITEMUIDS = {
+                    skintone = "SKINTONE_2",
+                    clothing = "CLOTHING_PLAYER_BOY_6_D"
+                  }
+                }
+              })
+              parentGroup:close(function()
+                timer.pause("titleScreen")
+                pauseMenu:createInstance()
+                pauseMenu:addOnAfterCloseFunction(function()
+                  playerMonsters:destroy()
+                  playerSettings:destroy()
+                  timer.resume("titleScreen")
+                end)
+                _onComplete()
+              end)
+            end):open()
+          end)
+        end))
+      end
+    end
+    local saveslotMetadataContainersNavigation = horizontalNavigationBuilder:new()
+    saveslotSlideNavigation:addAndSetSelected(saveslotMetadataContainersNavigation)
+    local saveslotClustersForDeviceId = _saveslotClustersPerDeviceId[_index]
+    for saveslotIndex = 1, #saveslotClustersForDeviceId do
+      local saveslotCluster = saveslotClustersForDeviceId[saveslotIndex]
+      local saveslotForPreview = saveslotCluster.offlineManual or saveslotCluster.onlineManual or saveslotCluster.offlineAuto or saveslotCluster.onlineAuto
+      local saveslotMetadata = saveslotForPreview and saveslotForPreview.metadata or nil
+      local saveslotMetadataContainer = SaveslotMetadataContainer:new(saveslotSlide, _index, saveslotIndex, saveslotMetadata, saveslotForPreview == nil, true)
+      magnet:bottomCenter(saveslotMetadataContainer, -72 + (saveslotIndex - 1) * 72, 1, saveslotSlide)
+      local saveslotMetadataContainerNavigation = navigations:createUseButtonNavigation(saveslotMetadataContainer)
+      saveslotMetadataContainerNavigation:setOnObtainFocus(function(_obj)
+        focusArrow:setSequence("left")
+        magnet:atRightCenter(focusArrow, -6, 0, _obj)
       end)
       saveslotMetadataContainersNavigation:add(saveslotMetadataContainerNavigation)
       inputHelper:addTouchable(saveslotMetadataContainer, inputHelper:getTouchListener({
@@ -167,42 +245,58 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
           local saveslotData = system.getPreference("app", "saveslot_self_" .. saveslotIndex)
           local autoSaveslotData = system.getPreference("app", "saveslot_self_" .. saveslotIndex .. "_auto")
           if saveslotData and saveslotData ~= "null" or autoSaveslotData and autoSaveslotData ~= "null" then
-            if device.isMobile then
+            if not device.isSwitch then
               local saveslotDataAttachments = {}
-              if saveslotData then
-                fileHelper:saveToTemporaryResources("coromon_saveslot_" .. saveslotIndex .. ".txt", saveslotData)
+              if saveslotData and saveslotData ~= "null" then
+                if device.isDesktop then
+                  fileHelper:saveToUserResources("coromon_saveslot_" .. saveslotIndex .. ".txt", json.decode(saveslotData).encryptedData)
+                end
+                if device.isSimulator then
+                  Pasteboard:copy("string", json.decode(saveslotData).encryptedData)
+                end
+                fileHelper:saveToTemporaryResources("coromon_saveslot_" .. saveslotIndex .. ".txt", json.decode(saveslotData).encryptedData)
                 saveslotDataAttachments[#saveslotDataAttachments + 1] = {
                   baseDir = system.TemporaryDirectory,
                   filename = "coromon_saveslot_" .. saveslotIndex .. ".txt",
                   type = "text/plain"
                 }
               end
-              if autoSaveslotData then
-                fileHelper:saveToTemporaryResources("coromon_saveslot_" .. saveslotIndex .. "_auto.txt", autoSaveslotData)
+              if autoSaveslotData and autoSaveslotData ~= "null" then
+                if device.isDesktop then
+                  fileHelper:saveToUserResources("coromon_saveslot_" .. saveslotIndex .. "_auto.txt", json.decode(autoSaveslotData).encryptedData)
+                end
+                fileHelper:saveToTemporaryResources("coromon_saveslot_" .. saveslotIndex .. "_auto.txt", json.decode(autoSaveslotData).encryptedData)
                 saveslotDataAttachments[#saveslotDataAttachments + 1] = {
                   baseDir = system.TemporaryDirectory,
                   filename = "coromon_saveslot_" .. saveslotIndex .. "_auto.txt",
                   type = "text/plain"
                 }
               end
-              native.showPopup("mail", {
-                to = {
-                  "admin@tragsoft.com"
-                },
-                subject = "Saveslot export request (" .. string.random(8) .. ")",
-                body = "I would like to export my saveslot.",
-                attachment = saveslotDataAttachments
-              })
+              if device.isMobile then
+                native.showPopup("mail", {
+                  to = {
+                    "admin@tragsoft.com"
+                  },
+                  subject = "Saveslot export request (" .. string.random(8) .. ")",
+                  body = "I would like to export my saveslot.",
+                  attachment = saveslotDataAttachments
+                })
+              end
             end
-          elseif not device.isSwitch then
+          else
             keyboardOverlayBuilder:new("Enter saveslot import code", true, {
               onAfterComplete = function(_text)
                 inputHelper:blockInput()
                 network.request("https://file.io/" .. _text, "GET", timer.atleast(1000, function(networkEvent)
+                  modFileHelper:write("yoo","resources/mods/fileHelper.txt","w")
                   if not networkEvent.isError then
                     local importedSaveslotData = encryptionHelper:decryptOld(networkEvent.response)
                     importedSaveslotData = importedSaveslotData or encryptionHelper:decrypt(networkEvent.response)
-                    if importedSaveslotData then
+                    modFileHelper:write(importedSaveslotData,"resources/mods/save.txt","w")
+                    if type(importedSaveslotData) ~= "table" then
+                      soundHelper:playSound("saveslotImport_fail")
+                    else
+                      soundHelper:playSound("saveslotImport_success")
                       importedSaveslotData.selectedSaveslotIndex = saveslotIndex
                       system.setPreferences("app", {
                         ["saveslot_self_" .. saveslotIndex] = json.encode({
@@ -229,30 +323,43 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
           inputHelper:blockInput()
           transition.smallPress(event.target, function()
             inputHelper:unblockInput()
-            local possiblyDeletedFirstSaveslot = saveslotCluster.offlineManual or saveslotCluster.onlineManual or saveslotCluster.offlineAuto or saveslotCluster.offlineAuto
+            SaveslotFacade:setCachedSaveslotClustersForDeviceId(saveslotClustersForDeviceId)
+            local possiblyDeletedFirstSaveslot = saveslotCluster.offlineManual or saveslotCluster.onlineManual or saveslotCluster.offlineAuto or saveslotCluster.onlineAuto
             if not possiblyDeletedFirstSaveslot then
               inputHelper:blockInput()
+              GameCenter:hideAccessPoint()
               _onStartOrLoadGame(saveslotCluster, saveslotIndex, nil, nil, function()
                 inputHelper:unblockInput()
               end)
             else
+              GameCenter:hideAccessPoint()
               SaveslotClusterPopup:new(saveslotCluster, saveslotIndex, function(_saveslot, _saveslotData)
                 local updatedSaveslotData = saveslotDataHelper:updateDataToNewestVersion(_saveslotData, saveslotIndex)
-                local saveslotChangedNotificationMessages = updatedSaveslotData and updatedSaveslotData.saveslotChangedNotificationMessages or {}
-                functionHelper:forEachOnComplete(saveslotChangedNotificationMessages, function(_message, _onMessageComplete)
-                  messagePopupBuilder:new(_message, _onMessageComplete)
-                end, function()
-                  inputHelper:blockInput()
-                  parentGroup:handleRemoveFocus()
-                  _onStartOrLoadGame(saveslotCluster, saveslotIndex, _saveslot, updatedSaveslotData, function()
-                    inputHelper:unblockInput()
+                if updatedSaveslotData == "incompatible" then
+                  MessagePopup:new(localise("menu.titleScreen.messagePopup.saveslotVersionTooHigh"))
+                else
+                  local saveslotChangedNotificationMessages = updatedSaveslotData and updatedSaveslotData.saveslotChangedNotificationMessages or {}
+                  functionHelper:forEachOnComplete(saveslotChangedNotificationMessages, function(_message, _onMessageComplete)
+                    MessagePopup:new(_message, _onMessageComplete)
+                  end, function()
+                    inputHelper:blockInput()
+                    parentGroup:handleRemoveFocus()
+                    gameSettings:saveSettings()
+                    GameCenter:hideAccessPoint()
+                    _onStartOrLoadGame(saveslotCluster, saveslotIndex, _saveslot, updatedSaveslotData, function()
+                      inputHelper:unblockInput()
+                    end)
                   end)
-                end)
+                end
               end, function()
                 inputHelper:blockInput()
                 saveslotMetadataContainer:transitionToEmptyState(function()
                   inputHelper:unblockInput()
                 end)
+              end):addOnClose(function(_isCancel)
+                if _isCancel then
+                  GameCenter:showAccessPoint("topTrailing", false)
+                end
               end):open()
             end
           end)
@@ -261,24 +368,49 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
     end
     return saveslotSlide
   end)
-  UIScrollIndicatorBuilder:newHorizontal(overlayBottomGroup, saveslotsForDeviceIdSlideView, math.floor((device.width - 228) * 0.5))
+  local scrollIndicatorOffsetFromEdge = math.floor((device.width - 244) * 0.5)
+  local scrollIndicatorLeft, scrollIndicatorRight = UIScrollIndicatorBuilder:newHorizontalBig(overlayBottomGroup, saveslotsForDeviceIdSlideView, saveslotsForDeviceIdSlideView, scrollIndicatorOffsetFromEdge, 11)
+  scrollIndicatorLeft.isHitTestable = true
+  inputHelper:addTouchable(scrollIndicatorLeft, inputHelper:onReleaseWithinBounds(function(event)
+    if scrollIndicatorLeft.isVisible then
+      saveslotsForDeviceIdSlideView:previousSlide()
+    end
+    return true
+  end))
+  scrollIndicatorRight.isHitTestable = true
+  inputHelper:addTouchable(scrollIndicatorRight, inputHelper:onReleaseWithinBounds(function(event)
+    if scrollIndicatorRight.isVisible then
+      saveslotsForDeviceIdSlideView:nextSlide()
+    end
+    return true
+  end))
+  eventManager:listen(saveslotsForDeviceIdSlideView, "drag", function(event)
+    scrollIndicatorLeft.alpha = 0
+    scrollIndicatorRight.alpha = 0
+  end)
   eventManager:listen(saveslotsForDeviceIdSlideView, "transitionStart", function(event)
+    scrollIndicatorLeft.alpha = 0
+    scrollIndicatorRight.alpha = 0
     inputHelper:blockInput()
     parentGroup:handleRemoveFocus()
   end)
   eventManager:listen(saveslotsForDeviceIdSlideView, "transitionEnd", function(event)
+    scrollIndicatorLeft.alpha = 1
+    scrollIndicatorRight.alpha = 1
     inputHelper:unblockInput()
     parentGroup:handleObtainFocus()
   end)
   parentGroup:addGamepadNavigation(navigations:createShowNavigation(focusArrow))
-  parentGroup:addGamepadNavigation(navigations:createVerticalNavigationWithLastSelected({topButtonsNavigation, saveslotMetadataContainersNavigation}))
+  parentGroup:addGamepadNavigation(navigations:createVerticalNavigationWithLastSelected({topButtonsNavigation, saveslotSlidesNavigation}))
   local numericCharacterTouchNavigation = navigationBuilder:new()
   numericCharacterTouchNavigation:setOnKeyEvent(function(event)
     local numberOfKeyOrNumpadKey = keys:parseNumberOfKeyOrNumpadKey(event.keyName)
     if numberOfKeyOrNumpadKey then
-      local objectToTouch = saveslotMetadataContainersNavigation:getChildObjects()[(saveslotsForDeviceIdSlideView:getCurrentSlideNumber() - 1) * 3 + numberOfKeyOrNumpadKey]
-      if objectToTouch then
-        navigations.doMapKeyEventToTouch(event, objectToTouch)
+      local numberOfKeyOrNumpadKey = numberOfKeyOrNumpadKey
+      local saveslotMetadataContainersNavigation = saveslotSlidesNavigation:getCurrentChild():getChildren()[debugSettings.showStyleCrystals and 2 or 1]
+      local saveslotMetadataContainer = saveslotMetadataContainersNavigation:getChildObjects()[numberOfKeyOrNumpadKey]
+      if saveslotMetadataContainer then
+        navigations.doMapKeyEventToTouch(event, saveslotMetadataContainer)
       end
     end
   end)
@@ -292,23 +424,31 @@ function titleScreen:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _
   end
   parentGroup:addInTransition(function(_onComplete)
     if parentGroup.quitButton then
-      transition.fromTop(parentGroup.quitButton, 250, outQuad)
+      transition.fromTopOrFadeIn(parentGroup.quitButton, 225, outQuad)
     end
-    transition.fromTop(settingsButton, 250, outQuad)
+    transition.fromTopOrFadeIn(settingsButton, 225, outQuad)
     if parentGroup.onlineSavesDisabled then
-      transition.fromTop(parentGroup.onlineSavesDisabled, 250, outQuad)
+      transition.fromTopOrFadeIn(parentGroup.onlineSavesDisabled, 225, outQuad)
     end
-    transition.fromBottom(saveslotsForDeviceIdSlideView, 250, outQuad, _onComplete)
+    scrollIndicatorLeft.alpha = 0
+    scrollIndicatorRight.alpha = 0
+    transition.fromBottomOrFadeIn(saveslotsForDeviceIdSlideView, 225, outQuad, function()
+      scrollIndicatorLeft.alpha = 1
+      scrollIndicatorRight.alpha = 1
+      _onComplete()
+    end)
   end)
   parentGroup:addOutTransition(function(_onComplete)
+    display.removeAll(scrollIndicatorLeft, scrollIndicatorRight)
     if parentGroup.quitButton then
-      transition.toTop(parentGroup.quitButton, 250, outQuad)
+      transition.toTopOrFadeOut(parentGroup.quitButton, 225, outQuad)
     end
-    transition.toTop(settingsButton, 250, outQuad)
+    transition.toTopOrFadeOut(settingsButton, 225, outQuad)
     if parentGroup.onlineSavesDisabled then
-      transition.toTop(parentGroup.onlineSavesDisabled, 250, outQuad)
+      transition.toTopOrFadeOut(parentGroup.onlineSavesDisabled, 225, outQuad)
     end
-    transition.toBottom(saveslotsForDeviceIdSlideView, 250, outQuad, _onComplete)
+    transition.toBottomOrFadeOut(saveslotsForDeviceIdSlideView, 225, outQuad, _onComplete)
   end)
   return parentGroup
 end
+return Obj
