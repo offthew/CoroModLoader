@@ -1,4 +1,4 @@
-# Coromon Mod Loader v0.1
+# Coromon Mod Loader v0.1 for 1.1.2
 **⚠️ Support the game and buy it ⚠️**
 
 A mod loader made for [Coromon](https://www.coromon.com/) written in Lua. This Mod Loader allows you to mods outside of the resource.car. An API is also being build to allow modders editing the same functions and to improve their QoL.
