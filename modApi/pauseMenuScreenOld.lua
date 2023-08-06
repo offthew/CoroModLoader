@@ -1,15 +1,13 @@
 local t= {}
-local Screen = pauseMenuScreenBuilder:newSimpleBuilder("pauseMenuScreen")
+local pauseMenuScreen = require("classes.interface.screens.pauseMenuScreen")
 local monsterButtonBuilder = require("classes.interface.monsterButtonBuilder")
-local MessagePopup = require("classes.interface.overlays.MessagePopup")
+local messagePopupBuilder = require("classes.interface.overlays.messagePopupBuilder")
 local confirmPopupBuilder = require("classes.interface.overlays.confirmPopupBuilder")
 local moveHoldItemPopupBuilder = require("classes.interface.overlays.moveHoldItemPopupBuilder")
 local monsterButtonPopupBuilder = require("classes.interface.overlays.monsterButtonPopupBuilder")
-local StyleCrystalShopScreenModeActionMenuOverlay = require("classes.interface.overlays.StyleCrystalShopScreenModeActionMenuOverlay")
 local pauseMenuScreenMonsterActionMenuOverlayBuilder = require("classes.interface.overlays.pauseMenuScreenMonsterActionMenuOverlayBuilder")
 local pauseButtons = {
 }
-
 function t:addPauseButton(id,requirePath,image)
   image = image or "mods/modLoader/img/pauseButtonBasic.png"
   local button = {
@@ -21,7 +19,7 @@ function t:addPauseButton(id,requirePath,image)
   table.insert(pauseButtons,button)
 end
 function t:addToPauseMenu(navigationButtonConfigs,pauseButtons)
-  modLoaderApi.log:write("Adding New Pause Buttons")
+  modApi.log:write("Adding New Pause Buttons")
   for i=0, #pauseButtons do
   table.insert(navigationButtonConfigs,pauseButtons[i])
   end
@@ -30,6 +28,9 @@ end
 function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, horizontalCenterContainer, verticalCenterContainer, safeContainer)
   local parentGroup = pauseMenuScreenBuilder:new()
   parentGroup:addTopBarObject(outerTopBarQuitButtonBuilder:new())
+  if debugSettings.showBattleTokens then
+    parentGroup:addTopBarObject(innerTopBarBattleToken:getOrCreateInstance())
+  end
   parentGroup:addTopBarObject(innerTopBarGold:getOrCreateInstance())
   local focusArrow = focusArrowBuilder:new(pauseMenu:getTopGroup())
   parentGroup:addGamepadNavigation(navigations:createShowNavigation(focusArrow))
@@ -44,22 +45,8 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
   local squadGamepadGridNavigation = gridNavigationBuilder:new():setGridWidth(3)
   squadGamepadGridNavigation:setSelectedIndex(screenParams.previousSquadNavigationXIndex or 3, screenParams.previousSquadNavigationYIndex or 1)
   squadGamepadNavigation:add(squadGamepadGridNavigation)
-  local squadGamepadBottomButtonsNavigation = horizontalNavigationBuilder:new()
-  squadGamepadNavigation:add(squadGamepadBottomButtonsNavigation)
-  if device.isTvOS and GameCenter:isEnabled() then
-    local accessPointNavigation = navigationBuilder:new()
-    accessPointNavigation:setOnObtainFocus(function()
-      focusArrow.alpha = 0
-      GameCenter:setAccessPointFocused(true)
-    end)
-    accessPointNavigation:setOnRemoveFocus(function()
-      focusArrow.alpha = 1
-      GameCenter:setAccessPointFocused(false)
-    end)
-    squadGamepadBottomButtonsNavigation:add(accessPointNavigation)
-  end
   local squadGamepadHoldItemButtonParentNavigation = forcedParentNavigationBuilder:new()
-  squadGamepadBottomButtonsNavigation:add(squadGamepadHoldItemButtonParentNavigation)
+  squadGamepadNavigation:add(squadGamepadHoldItemButtonParentNavigation)
   local rightGamepadNavigation = verticalNavigationBuilder:new()
   rightGamepadNavigation:setSelectedIndex(screenParams.previousRightNavigationIndex or 1)
   gamepadNavigation:add(rightGamepadNavigation)
@@ -92,11 +79,6 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
     },
     {id = "save"}
   }
-  if debugSettings.showStyleCrystals then
-    array.insert(navigationButtonConfigs, 2, {
-      id = "StyleCrystalShopScreen"
-    })
-  end
   navigationButtonConfigs = t:addToPauseMenu(navigationButtonConfigs,pauseButtons)
   local navigationButtonGroup = groupHelper:new(parentGroup)
   for i = 1, #navigationButtonConfigs do
@@ -104,14 +86,12 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
     local navigationButtonId = navigationButtonConfig.id
     local navigationButtonShowScreenParams = navigationButtonConfig.showScreenParams
     local navigationButtonShowScreenParamsOnHold = navigationButtonConfig.showScreenParamsOnHold
-    local navigationButtonHeight = debugSettings.showStyleCrystals and 17 or 19
     --Mod
     local navigationButtonIsMod = navigationButtonConfig.isMod
     local navigationButtonRequire = navigationButtonConfig.require
     local navigationButtonImage = navigationButtonConfig.image
-
-    local navigationButton = UIContainerBuilder:new(navigationButtonGroup, UIContainerStyle.darkBlue_round, 73, navigationButtonHeight)
-    magnet:centerRight(navigationButton, 1, magnet:evenlyDistributed(#navigationButtonConfigs, navigationButtonHeight - 1, i), centerContainer)
+    local navigationButton = UIContainerBuilder:new(navigationButtonGroup, UIContainerStyle.darkBlue_round, 73, 19)
+    magnet:centerRight(navigationButton, 1, magnet:evenlyDistributed(#navigationButtonConfigs, 18, i), centerContainer)
     if navigationButtonId == "milestoneScreen" and next(playerStats:getUnclaimedButAchievedMilestoneStages()) and not playerStats:hasReachedMaxLuxSolisRankExperience() then
       do
         local navigationButtonHighlight = UIContainerBuilder:new(navigationButton, UIContainerStyle.darkBlue_round_highlight, navigationButton.width, navigationButton.height, {alpha = 0})
@@ -131,8 +111,6 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
         end)
       end
     end
-
-    --Mod showing mod text and icon on pause button, for the future think about crystal shop
     local navigationButtonLabel
     local navigationButtonIcon
     if(navigationButtonIsMod) then
@@ -144,7 +122,6 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
     end
     magnet:centerLeft(navigationButtonLabel, 6, -1, navigationButton)
     magnet:centerRight(navigationButtonIcon, 4, 0, navigationButton)
-    
     local navigationButtonNavigation = navigations:createUseButtonNavigation(navigationButton, function(_obj)
       magnet:centerRight(focusArrow, -6, 0, _obj)
     end)
@@ -160,12 +137,15 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
         inputHelper:blockInput()
         transition.smallPress(event.target, function()
           inputHelper:unblockInput()
-          if navigationButtonId ~= "save" and navigationButtonId ~= "StyleCrystalShopScreen" then
-            pauseMenu:showScreen(navigationButtonId, event.hasBeenHeld and navigationButtonShowScreenParamsOnHold or navigationButtonShowScreenParams)
-          elseif navigationButtonId == "StyleCrystalShopScreen" then
-            StyleCrystalShopScreenModeActionMenuOverlay:new(navigationButton, false):open()
+          if navigationButtonId ~= "save" then
+            if(navigationButtonIsMod) then
+                    
+              pauseMenu:showScreenModloader(navigationButtonRequire, event.hasBeenHeld and navigationButtonShowScreenParamsOnHold or navigationButtonShowScreenParams)
+            else
+              pauseMenu:showScreen(navigationButtonId, event.hasBeenHeld and navigationButtonShowScreenParamsOnHold or navigationButtonShowScreenParams)
+            end
           elseif playerStateHelper:isSaveBlocked() then
-            MessagePopup:new(localise("menu.pauseMenuScreen.cantSaveNow"))
+            messagePopupBuilder:new(localise("menu.pauseMenuScreen.cantSaveNow"))
           else
             inputHelper:blockInput()
             UISaveBarBuilder:newForManualSave(function()
@@ -180,10 +160,7 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
   magnet:centerLeft(squadContainerContainer, 0, 0, centerContainer)
   local squadContainer, squadContainerContentGroup, squadContainerTopGroup = UIContainerBuilder:newGreySlimWithHeaderSpacing(squadContainerContainer, 170, 120)
   magnet:topCenter(squadContainer, 0, 2, squadContainerContainer)
-  squadContainer:setHeaderText(localise("menu.pauseMenuScreen.squadContainer.headerText"))
-  if device.isApple and device.height < 170 then
-    squadContainerContainer:translate(0, debugSettings.showStyleCrystals and -7 or -6)
-  end
+  squadContainer:setHeaderText(localise("menu.pauseMenuScreen.squadContainer.headerText"), false)
   local showHoldItemButton
   local monsterButtons = {}
   local monsterButtonGroup = groupHelper:new(squadContainerContentGroup)
@@ -226,14 +203,13 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
           local dragHoveredMonsterButton
           local function setDragHoveredMonsterButton(_monsterButton)
             dragHoveredMonsterButton = _monsterButton
-            _monsterButton:setSwapping(true)
+            dragHoveredMonsterButton:setSwapping(true)
             currentMonsterButton:setSwapping(true)
           end
           local function tryUnsetDragHoveredMonsterButton()
             if dragHoveredMonsterButton then
-              local nonNilDragHoveredMonsterButton = dragHoveredMonsterButton
-              nonNilDragHoveredMonsterButton:setSwapping(false)
               currentMonsterButton:setSwapping(false)
+              dragHoveredMonsterButton:setSwapping(false)
               dragHoveredMonsterButton = nil
             end
           end
@@ -278,10 +254,13 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
                   screenParams.previousSquadNavigationXIndex, screenParams.previousSquadNavigationYIndex = gridHelper:indexToGrid(3, _index)
                 end))
               end
+              local function onMonsterNickname()
+                monsterUtility:showMonsterNicknameKeyboardOverlay(currentMonster, refreshMonsterButtons)
+              end
               local function onMonsterGiveHoldItem()
                 local holdItems = playerInventory:getItemArrayByInstanceOf("abstractHoldItem")
                 if #holdItems == 0 then
-                  MessagePopup:new(localise("menu.monsterSummaryScreen.monsterSummaryHoldItemTabDetails.holdItemButton.noHoldItems"))
+                  messagePopupBuilder:new(localise("menu.monsterSummaryScreen.monsterSummaryHoldItemTabDetails.holdItemButton.noHoldItems"))
                 else
                   pauseMenu:showScreen(itemScreen:getScreenForSettingHoldItemOnMonster(holdItems, currentMonster))
                 end
@@ -293,8 +272,7 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
                     item = currentMonster:getHoldItem():getName()
                   }),
                   createCustomContentFunction = function()
-                    local itemIcon, _, _ = currentMonster:getHoldItem():createIcon()
-                    return itemIcon
+                    return currentMonster:getHoldItem():createIcon()
                   end,
                   onYes = function()
                     currentMonster:removeHoldItemAndSendToInventory()
@@ -339,19 +317,27 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
                   })
                 })
               end
+              local function onMonsterRelease()
+                confirmPopupBuilder:new({
+                  text = localise("menu.pauseMenuScreen.areYouSureReleaseMonster", {
+                    monster = currentMonster:getDisplayName()
+                  }),
+                  createCustomContentFunction = function()
+                    return monsterButtonBuilder:new("hpAndSp", currentMonster)
+                  end,
+                  shouldHoldYes = true,
+                  onYes = timer.blockingDelay(500, function()
+                    playerMonsters:releaseFromSquad(currentMonster)
+                    messagePopupBuilder:new(localise("global.message.byeByeMonster." .. math.random(3), {
+                      monster = currentMonster:getDisplayName()
+                    }), refreshMonsterButtons)
+                  end)
+                })
+              end
               inputHelper:blockInput()
               transition.smallPress(event.target, function()
                 inputHelper:unblockInput()
-                pauseMenuScreenMonsterActionMenuOverlayBuilder:new(currentMonster, currentMonsterButton, onMonsterSummary, onMonsterSwitch, function()
-                  monsterUtility:showMonsterNicknameKeyboardOverlay(currentMonster, refreshMonsterButtons)
-                end, onMonsterGiveHoldItem, onMonsterMoveHoldItem, onMonsterRemoveHoldItem, function()
-                  monsterUtility:showMonsterReleaseConfirmPopupWithByeByeMessage(localise("menu.pauseMenuScreen.areYouSureReleaseMonster", {
-                    monster = currentMonster:getDisplayName()
-                  }), currentMonster, function()
-                    playerMonsters:releaseFromSquad(currentMonster)
-                    refreshMonsterButtons()
-                  end, nil)
-                end):open()
+                pauseMenuScreenMonsterActionMenuOverlayBuilder:new(currentMonster, currentMonsterButton, i, onMonsterSummary, onMonsterSwitch, onMonsterNickname, onMonsterGiveHoldItem, onMonsterMoveHoldItem, onMonsterRemoveHoldItem, timer.blockingDelay(250, onMonsterRelease))
               end)
             end
           }))
@@ -370,10 +356,10 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
       magnet:bottomCenter(showHoldItemButton, 0, -7, squadContainer)
       local showHoldItemIcon = imageHelper:new(showHoldItemButton, "images/interface/icons/otherIcons/holdItemIndicatorIcon.png")
       magnet:center(showHoldItemIcon, 0, 0, showHoldItemButton)
-      showHoldItemSecondExtraButtonNavigation:setOnSecondExtra(navigations.mapKeyEventToTouches(showHoldItemButton))
       squadGamepadHoldItemButtonParentNavigation:setChild(navigations:createUseButtonNavigation(showHoldItemButton, function(_obj)
         magnet:centerRight(focusArrow, -12, 2, _obj)
       end))
+      showHoldItemSecondExtraButtonNavigation:setOnSecondExtra(navigations.mapKeyEventToTouches(showHoldItemButton))
       inputHelper:addTouchable(showHoldItemButton, inputHelper:getTouchListener({
         onPress = function()
           showHoldItemButton:setStyle(UIContainerStyle.blueSelected)
@@ -396,17 +382,13 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
   parentGroup:addGlobalNavigation(navigations:createNumericKeyTouchNavigation(rightGamepadNavigation:getChildObjects()))
   parentGroup:setTitle(playerSettings:getPlayerName())
   function parentGroup:inTransition(_onComplete)
-    GameCenter:showAccessPoint("bottomLeading", false)
-    transition.fromRightOrFadeIn(navigationButtonGroup, 100, outQuad, {
-      delay = gameSettings:shouldReduceMotion() and 0 or 100
-    })
-    transition.fromLeftOrFadeIn(squadContainerContainer, 200, outQuad, _onComplete)
+    transition.fromRight(navigationButtonGroup, 100, outQuad, {delay = 100})
+    transition.fromLeft(squadContainerContainer, 200, outQuad, _onComplete)
   end
   function parentGroup:outTransition(_isBackwards, _onComplete)
-    GameCenter:hideAccessPoint()
     transition.cancel("pauseMenuScreen")
-    transition.toRightOrFadeOut(navigationButtonGroup, 150, outQuad)
-    transition.toLeftOrFadeOut(squadContainerContainer, 150, outQuad, _onComplete)
+    transition.toRight(navigationButtonGroup, 150, outQuad)
+    transition.toLeft(squadContainerContainer, 150, outQuad, _onComplete)
   end
   return parentGroup
 end

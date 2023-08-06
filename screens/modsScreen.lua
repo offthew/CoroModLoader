@@ -2,7 +2,7 @@ local Screen = {}
 local modListContent = {}
 modListEdited = false
 
-for index, value in ipairs(modApi.modList) do
+for index, value in ipairs(modLoaderApi.modList) do
   mod = {}
   mod["category"] = value["name"]
   mod["builders"] = {}

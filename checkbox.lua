@@ -7,11 +7,11 @@ function t:createCheckbox(modName,description,context)
     label = description,
     contextText = context,
     getValue = function()
-      return modApi:getActivatedMod(modName)
+      return modLoaderApi:getActivatedMod(modName)
     end,
     setValue = function(_boolean)
-      modApi:setActivatedMod(modName,_boolean)
-      fileHelper:write(json.encode(modApi.modList),"resources/mods/mods.json","w")
+      modLoaderApi:setActivatedMod(modName,_boolean)
+      fileHelper:write(json.encode(modLoaderApi.modList),"resources/mods/mods.json","w")
       modListEdited = true
     end
   }
@@ -21,8 +21,8 @@ function t:createCheckbox(modName,description,context)
   function Obj:shouldBeRendered(_isFromTitleScreen)
     return true
   end
-  function Obj:new(_parent, _focusArrow, _settingObjects, _gamepadNavigation, _settingObjectParentNavigation)
-    local checkboxSetting, checkboxNavigation = AbstractCheckboxSetting:new(_parent, modName.."Checkbox", _focusArrow, datas)
+  function Obj:new(_parent, _settingsScrollView, _UID, _focusArrow, _options)
+    local checkboxSetting, checkboxNavigation = AbstractCheckboxSetting:new(_parent,_settingsScrollView, modName.."Checkbox", _focusArrow, datas)
     return checkboxSetting, checkboxNavigation
   end
   return Obj

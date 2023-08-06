@@ -1,10 +1,10 @@
 menu = require("classes.modules.interface.menuBuilder")
 function menu:new()
-  local menu = groupHelper:new(nil)
+  local menu = groupHelper:new()
   local menuBottomGroup = groupHelper:new(menu)
   local menuScreenGroup = groupHelper:new(menu)
   local menuTopGroup = groupHelper:new(menu)
-  local currentScreenScreenParams, currentScreenObject, currentScreenName, newScreenScreenParams, newScreenName
+  local currentScreenObject, currentScreenName
   local history = {}
   function menu:getHistory()
     return history
@@ -15,20 +15,11 @@ function menu:new()
       ...
     }
   end
-  function menu:getCurrentScreenScreenParams()
-    return currentScreenScreenParams
-  end
   function menu:getCurrentScreenObject()
     return currentScreenObject
   end
   function menu:getCurrentScreenName()
     return currentScreenName
-  end
-  function menu:getNewOrCurrentScreenScreenParams()
-    return newScreenScreenParams or currentScreenScreenParams
-  end
-  function menu:getNewOrCurrentScreenName()
-    return newScreenName or currentScreenName
   end
   function menu:getBottomGroup()
     return menuBottomGroup
@@ -48,7 +39,6 @@ function menu:new()
         currentScreenObject:outTransition(_isBackwards, function()
           nextFrame(function()
             currentScreenName = nil
-            currentScreenScreenParams = nil
             currentScreenObject = display.remove(currentScreenObject)
             _onComplete()
           end)
@@ -62,10 +52,8 @@ function menu:new()
     local _screenParams = _screenParams or {}
     local _extraParams = _extraParams or {}
     local _onShow = _extraParams.onShow
-    local _isBackwards = _extraParams.isBackwards or false
+    local _isBackwards = _extraParams.isBackwards
     local _history = _extraParams.history
-    newScreenName = _screenName
-    newScreenScreenParams = _screenParams
     local _screenClass = require("classes.interface.screens." .. _screenName)
     local newScreenObject = _screenClass:new(_screenParams, unpack(defaultScreenParams))
     newScreenObject.isVisible = false
@@ -80,11 +68,8 @@ function menu:new()
       menu:onBetweenShowScreen(_screenName, _screenParams, newScreenObject, _isBackwards)
       newScreenObject.isVisible = true
       newScreenObject:inTransition(function()
-        newScreenName = nil
-        newScreenScreenParams = nil
         currentScreenName = _screenName
         currentScreenObject = newScreenObject
-        currentScreenScreenParams = _screenParams
         menu:onAfterShowScreen(_screenName, _screenParams, newScreenObject, _isBackwards)
         if _onShow then
           _onShow(currentScreenObject)
@@ -96,10 +81,8 @@ function menu:new()
     local _screenParams = _screenParams or {}
     local _extraParams = _extraParams or {}
     local _onShow = _extraParams.onShow
-    local _isBackwards = _extraParams.isBackwards or false
+    local _isBackwards = _extraParams.isBackwards
     local _history = _extraParams.history
-    newScreenName = _screenName
-    newScreenScreenParams = _screenParams
     local _screenClass = require("resources.mods." .. _screenName)
     local newScreenObject = _screenClass:new(_screenParams, unpack(defaultScreenParams))
     newScreenObject.isVisible = false
@@ -114,11 +97,8 @@ function menu:new()
       menu:onBetweenShowScreen(_screenName, _screenParams, newScreenObject, _isBackwards)
       newScreenObject.isVisible = true
       newScreenObject:inTransition(function()
-        newScreenName = nil
-        newScreenScreenParams = nil
         currentScreenName = _screenName
         currentScreenObject = newScreenObject
-        currentScreenScreenParams = _screenParams
         menu:onAfterShowScreen(_screenName, _screenParams, newScreenObject, _isBackwards)
         if _onShow then
           _onShow(currentScreenObject)
@@ -144,6 +124,19 @@ function menu:new()
       menu:showScreen(previousScreenHistoryObject.screenName, previousScreenHistoryObject.screenParams, {isBackwards = true})
     end
   end
+  function menu:findPageIndexByScreenName(_name)
+    return self:findPageIndex(function(_screenName, _screenParams)
+      return _screenName == _name
+    end)
+  end
+  function menu:findPageIndex(_function)
+    for i = #history, 1, -1 do
+      local currentHistoryObject = history[i]
+      if _function(currentHistoryObject.screenName, currentHistoryObject.screenParams) then
+        return i
+      end
+    end
+  end
   function menu:close(_onComplete)
     unloadCurrentScreen(true, function()
       if _onComplete then
@@ -153,4 +146,3 @@ function menu:new()
   end
   return menu
 end
-return t

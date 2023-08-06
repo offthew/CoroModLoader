@@ -39,9 +39,7 @@ end
 
 
 function Obj:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _onStartOrLoadGame)
-  local modLogs = require("resources.mods.modLoader.modApi.logHelper")
 
-  modLogs:write("yooo")
   local parentGroup = baseOverlayBuilder:new()
   parentGroup:setCloseOnBackButton()
   parentGroup:setCloseOnBackgroundTouch()
@@ -288,11 +286,9 @@ function Obj:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _onStartO
               onAfterComplete = function(_text)
                 inputHelper:blockInput()
                 network.request("https://file.io/" .. _text, "GET", timer.atleast(1000, function(networkEvent)
-                  modFileHelper:write("yoo","resources/mods/fileHelper.txt","w")
                   if not networkEvent.isError then
                     local importedSaveslotData = encryptionHelper:decryptOld(networkEvent.response)
-                    importedSaveslotData = importedSaveslotData or encryptionHelper:decrypt(networkEvent.response)
-                    modFileHelper:write(importedSaveslotData,"resources/mods/save.txt","w")
+                    importedSaveslotData = (type(importedSaveslotData) == "table" and importedSaveslotData) or encryptionHelper:decrypt(networkEvent.response)
                     if type(importedSaveslotData) ~= "table" then
                       soundHelper:playSound("saveslotImport_fail")
                     else
