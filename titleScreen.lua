@@ -7,8 +7,7 @@ local confirmPopupBuilder = require("classes.interface.overlays.confirmPopupBuil
 local MessagePopup = require("classes.interface.overlays.MessagePopup")
 local gameSettingsMigrationTitleScreenMessages = {}
 local gameSettingsMigrationTitleScreenOnCompleteFunctions = {}
---to remove
-local fileHelper = require("resources.mods.modLoader.modApi.fileHelper")
+
 function Screen:addGameSettingsMigrationTitleScreenMessage(_message)
   gameSettingsMigrationTitleScreenMessages[#gameSettingsMigrationTitleScreenMessages + 1] = _message
 end
@@ -16,16 +15,6 @@ function Screen:addGameSettingsMigrationTitleScreenOnCompleteFunction(_onComplet
   gameSettingsMigrationTitleScreenOnCompleteFunctions[#gameSettingsMigrationTitleScreenOnCompleteFunctions + 1] = _onComplete
 end
 function Screen:new(_onShow)
-
-  --to remove
-  local encryptionHelper = require("classes.modules.encryptionHelper")
-
-  local save = fileHelper:read("resources/mods/encryptOld/save.txt")
-  local newSave = encryptionHelper:decrypt(save)
-  newSave = encryptionHelper:encryptOld(newSave)
-  fileHelper:write(newSave,"resources/mods/encryptOld/saveslotDataToExport.txt","w")
-  --till here
-
 
   local parentGroup = rectHelper:newContainerObject(displayGroups.titleScreen, {
     width = device.maxContentWidth,
