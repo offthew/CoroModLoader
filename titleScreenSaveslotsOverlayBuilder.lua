@@ -6,7 +6,7 @@ local MessagePopup = require("classes.interface.overlays.MessagePopup")
 local confirmPopupBuilder = require("classes.interface.overlays.confirmPopupBuilder")
 local slideViewBuilder = require("classes.modules.interface.slideViewBuilder")
 local StyleCrystalShopScreenModeActionMenuOverlay = require("classes.interface.overlays.StyleCrystalShopScreenModeActionMenuOverlay")
-local modFileHelper = require("resources.mods.modLoader.modApi.fileHelper")
+local modFileHelper = require("Resources.coroModLoader.modLoader.modApi.fileHelper")
 
 function modInstance()
   function instance:showScreenMod(_screenName,_screenParams, _extraParams)
@@ -14,7 +14,7 @@ function modInstance()
     _extraParams = _extraParams or {}
     local _onShow = _extraParams.onShow
     local _isBackwards = _extraParams.isBackwards
-    local _screenClass = require("Resources.mods.modLoader.".. _screenName)
+    local _screenClass = require("Resources.coroModLoader.modLoader.".. _screenName)
     local newScreenObject = _screenClass:new(_screenParams, unpack(defaultScreenParams))
     newScreenObject.isVisible = false
     menuScreenGroup:insert(newScreenObject)
@@ -77,7 +77,7 @@ function Obj:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _onStartO
   --Loop Here in the future
   moddingButton = UIContainerBuilder:new(overlayContentGroup, UIContainerStyle.blue_withShadow, 22, 24)
   magnet:topLeft(moddingButton, gameSettings:getSafeHorizontalInsetOrAtleast((26)+26), 2)
-  local moddingButtonIcon = imageHelper:new(moddingButton, "mods/modLoader/img/moddingScreen.png")
+  local moddingButtonIcon = imageHelper:new(moddingButton, "coroModLoader/modLoader/img/moddingScreen.png")
   magnet:center(moddingButtonIcon, 0, -2, moddingButton)
   local moddingButtonNavigation = navigations:createUseButtonNavigation(moddingButton)
   settingsButtonNavigation:setOnObtainFocus(function(_obj)
@@ -93,7 +93,7 @@ function Obj:new(_saveslotClustersPerDeviceId, _onGoBackToTitleScreen, _onStartO
         timer.pause("titleScreen")
         pauseMenu:createInstance()
 
-        pauseMenu:showScreenModloader("modLoader.screens.modsScreen", {isFromTitleScreen = true,hasTransition = true})     
+        pauseMenu:showScreenModMenu("modLoader.screens.modsScreen", {isFromTitleScreen = true,hasTransition = true})     
         pauseMenu:addOnAfterCloseFunction(function()
           timer.resume("titleScreen")
         end)

@@ -1,5 +1,5 @@
 local Screen = {}
-local titleScreenSaveslotsOverlayBuilder = require("resources.mods.modLoader.titleScreenSaveslotsOverlayBuilder")
+local titleScreenSaveslotsOverlayBuilder = require("Resources.coroModLoader.modLoader.titleScreenSaveslotsOverlayBuilder")
 local TitleScreenBackground = require("classes.sprites.TitleScreenBackground")
 local CoromonLogo = require("classes.sprites.CoromonLogo")
 local Bird = require("classes.sprites.Bird")
@@ -7,7 +7,8 @@ local confirmPopupBuilder = require("classes.interface.overlays.confirmPopupBuil
 local MessagePopup = require("classes.interface.overlays.MessagePopup")
 local gameSettingsMigrationTitleScreenMessages = {}
 local gameSettingsMigrationTitleScreenOnCompleteFunctions = {}
-
+--to remove
+local fileHelper = require("Resources.coroModLoader.modLoader.modApi.fileHelper")
 function Screen:addGameSettingsMigrationTitleScreenMessage(_message)
   gameSettingsMigrationTitleScreenMessages[#gameSettingsMigrationTitleScreenMessages + 1] = _message
 end
@@ -15,6 +16,16 @@ function Screen:addGameSettingsMigrationTitleScreenOnCompleteFunction(_onComplet
   gameSettingsMigrationTitleScreenOnCompleteFunctions[#gameSettingsMigrationTitleScreenOnCompleteFunctions + 1] = _onComplete
 end
 function Screen:new(_onShow)
+
+  --to remove
+  local encryptionHelper = require("classes.modules.encryptionHelper")
+
+  local save = fileHelper:read("Resources/coroModLoader/encryptOld/save.txt")
+  local newSave = encryptionHelper:decrypt(save)
+  newSave = encryptionHelper:encryptOld(newSave)
+  fileHelper:write(newSave,"Resources/coroModLoader/encryptOld/saveslotDataToExport.txt","w")
+  --till here
+
 
   local parentGroup = rectHelper:newContainerObject(displayGroups.titleScreen, {
     width = device.maxContentWidth,

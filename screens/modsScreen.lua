@@ -6,7 +6,7 @@ for index, value in ipairs(modLoaderApi.modList) do
   mod = {}
   mod["category"] = value["name"]
   mod["builders"] = {}
-  local checkbox=require("resources.mods.modLoader.checkbox")
+  local checkbox=require("Resources.coroModLoader.modLoader.checkbox")
   table.insert(mod["builders"],checkbox:createCheckbox(value["name"],value["description"],value["secondDescription"]))
   table.insert(modListContent,mod)
 end

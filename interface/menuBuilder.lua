@@ -100,7 +100,41 @@ function menu:new()
     local _history = _extraParams.history
     newScreenName = _screenName
     newScreenScreenParams = _screenParams
-    local _screenClass = require("resources.mods." .. _screenName)
+    local _screenClass = require("mods." .. _screenName)
+    local newScreenObject = _screenClass:new(_screenParams, unpack(defaultScreenParams))
+    newScreenObject.isVisible = false
+    menuScreenGroup:insert(newScreenObject)
+    if _history then
+      history = _history
+    elseif not _isBackwards then
+      history[#history + 1] = {screenName = _screenName, screenParams = _screenParams}
+    end
+    menu:onShowScreen(_screenName, _screenParams, newScreenObject, _isBackwards)
+    unloadCurrentScreen(_isBackwards, function()
+      menu:onBetweenShowScreen(_screenName, _screenParams, newScreenObject, _isBackwards)
+      newScreenObject.isVisible = true
+      newScreenObject:inTransition(function()
+        newScreenName = nil
+        newScreenScreenParams = nil
+        currentScreenName = _screenName
+        currentScreenObject = newScreenObject
+        currentScreenScreenParams = _screenParams
+        menu:onAfterShowScreen(_screenName, _screenParams, newScreenObject, _isBackwards)
+        if _onShow then
+          _onShow(currentScreenObject)
+        end
+      end)
+    end)
+  end
+  function menu:showScreenModMenu(_screenName, _screenParams, _extraParams)
+    local _screenParams = _screenParams or {}
+    local _extraParams = _extraParams or {}
+    local _onShow = _extraParams.onShow
+    local _isBackwards = _extraParams.isBackwards or false
+    local _history = _extraParams.history
+    newScreenName = _screenName
+    newScreenScreenParams = _screenParams
+    local _screenClass = require("Resources.coroModLoader." .. _screenName)
     local newScreenObject = _screenClass:new(_screenParams, unpack(defaultScreenParams))
     newScreenObject.isVisible = false
     menuScreenGroup:insert(newScreenObject)

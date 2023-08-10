@@ -1,5 +1,5 @@
 local t = {}
-local fileHelper = require("resources.mods.modLoader.modApi.fileHelper")
+local fileHelper = require("Resources.coroModLoader.modLoader.modApi.fileHelper")
 function t:createCheckbox(modName,description,context)
   context = context or nil
   local datas = 
@@ -11,7 +11,7 @@ function t:createCheckbox(modName,description,context)
     end,
     setValue = function(_boolean)
       modLoaderApi:setActivatedMod(modName,_boolean)
-      fileHelper:write(json.encode(modLoaderApi.modList),"resources/mods/mods.json","w")
+      fileHelper:write(json.encode(modLoaderApi.modList),"Resources/coroModLoader/mods.json","w")
       modListEdited = true
     end
   }

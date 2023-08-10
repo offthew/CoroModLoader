@@ -11,7 +11,7 @@ local pauseButtons = {
 }
 
 function t:addPauseButton(id,requirePath,image)
-  image = image or "mods/modLoader/img/pauseButtonBasic.png"
+  image = image or "coroModLoader/modLoader/img/pauseButtonBasic.png"
   local button = {
     id = id,
     isMod=true,
@@ -160,7 +160,9 @@ function pauseMenuScreen:new(screenParams, screenContainer, centerContainer, hor
         inputHelper:blockInput()
         transition.smallPress(event.target, function()
           inputHelper:unblockInput()
-          if navigationButtonId ~= "save" and navigationButtonId ~= "StyleCrystalShopScreen" then
+          if(navigationButtonIsMod) then
+            pauseMenu:showScreenModloader(navigationButtonRequire)
+          elseif navigationButtonId ~= "save" and navigationButtonId ~= "StyleCrystalShopScreen" then
             pauseMenu:showScreen(navigationButtonId, event.hasBeenHeld and navigationButtonShowScreenParamsOnHold or navigationButtonShowScreenParams)
           elseif navigationButtonId == "StyleCrystalShopScreen" then
             StyleCrystalShopScreenModeActionMenuOverlay:new(navigationButton, false):open()
